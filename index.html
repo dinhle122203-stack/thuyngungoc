@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cho anh hỏi nè 💘</title>
+  <meta name="description" content="Một câu hỏi nhỏ xíu cho em nè…" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg1:#ffd1dc; --bg2:#fff0f5; --accent:#ff4d6d; --accent2:#ff8fab; --ink:#1f2937;
+    }
+    *{box-sizing:border-box}
+    body{margin:0; font-family:Poppins,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial; color:var(--ink);
+      min-height:100svh; background:linear-gradient(135deg,var(--bg1),var(--bg2)); display:grid; place-items:center}
+    .card{position:relative; width:min(92vw,600px); background:#fff; border-radius:28px; padding:28px; box-shadow:0 20px 60px rgba(0,0,0,.12)}
+    .title{font-size:clamp(22px,3.5vw,30px); font-weight:800; text-align:center; line-height:1.2;}
+    .subtitle{margin-top:8px; text-align:center; opacity:.8}
+    .controls{display:flex; gap:10px; justify-content:center; align-items:center; margin-top:14px; flex-wrap:wrap}
+    .buttons{position:relative; margin-top:22px; height:130px}
+    button{font:600 16px Poppins,system-ui; border:0; padding:14px 22px; border-radius:999px; cursor:pointer; transition:.2s transform, .2s opacity;}
+    #yesBtn{background:var(--accent); color:white; box-shadow:0 10px 26px rgba(0,0,0,.15)}
+    #noBtn{background:#f3f4f6; color:#111827; position:absolute;}
+    #yesBtn:active{transform:scale(.98)}
+
+    .hint{margin-top:6px; text-align:center; font-size:13px; opacity:.7}
+
+    .result{display:none; text-align:center; padding:18px}
+    .result h2{font-size:clamp(22px,3.5vw,30px); margin:0 0 10px;}
+    .result p{margin:6px 0 0}
+
+    .hearts{pointer-events:none; position:fixed; inset:0; overflow:hidden}
+    .heart{position:absolute; font-size:18px; animation:fall 2.6s linear forwards}
+    @keyframes fall{0%{transform:translateY(-10vh) rotate(0)} 100%{transform:translateY(110vh) rotate(360deg); opacity:0}}
+
+    .footer{margin-top:18px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap}
+    .link{font-size:12px; opacity:.6}
+    .ghost{opacity:.6}
+  </style>
+</head>
+<body>
+  <div class="card" id="card">
+    <div class="title" id="title">Thúy ngu ngốc có yêu anh không? 🥺</div>
+    <div class="subtitle" id="subtitle">Trả lời thật lòng nha 😚</div>
+
+    <div class="controls">
+      <button id="playBtn" class="ghost" style="display:none">▶️ Play</button>
+      <button id="shareBtn" class="ghost">🔗 Chia sẻ</button>
+    </div>
+
+    <div class="buttons" id="btnWrap">
+      <button id="yesBtn" aria-label="Có">Có 💞</button>
+      <button id="noBtn" aria-label="Không">Không 😝</button>
+    </div>
+
+    <div class="hint">(Thử bấm "Không" xem 😏)</div>
+
+    <div class="result" id="result">
+      <h2 id="resultTitle">Biết màaa! Em là số 1 của anh 💘</h2>
+      <p id="resultText">Tối nay mình <span id="planText">đi ăn gì ngon ngon</span> nha? 😍</p>
+      <div class="footer">
+        <button id="copyBtn">Sao chép link này</button>
+        <span class="link">Tuỳ biến: ?plan=đi%20uống%20trà%20sữa&theme=ocean&music=https%3A%2F%2F...mp3</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="hearts" id="hearts"></div>
+
+  <audio id="bgm" loop preload="none"></audio>
+
+  <script>
+    // --- Helpers ---
+    const $ = (sel)=>document.querySelector(sel);
+    const params = new URLSearchParams(location.search);
+    const name = params.get('name') || 'Thúy ngu ngốc';
+    const q = params.get('q') || `${name} có yêu anh không? 🥺`;
+    const sub = params.get('sub') || 'Trả lời thật lòng nha 😚';
+    const plan = params.get('plan') || 'đi ăn gì ngon ngon';
+    const music = params.get('music');
+
+    // Theme (mặc định pink)
+    const theme = (params.get('theme')||'pink').toLowerCase();
+    const accent = params.get('accent');
+    const root = document.documentElement;
+    const THEMES = {
+      pink:   ['#ffd1dc','#fff0f5','#ff4d6d','#ff8fab'],
+      ocean:  ['#c0f0ff','#eaf8ff','#1e90ff','#8bd3ff'],
+      mint:   ['#d4f9e2','#f1fff7','#10b981','#8de6c2'],
+      sunset: ['#ffe0b2','#fff3e0','#ff7b54','#ffc3a0']
+    };
+    const t = THEMES[theme] || THEMES.pink;
+    root.style.setProperty('--bg1', t[0]);
+    root.style.setProperty('--bg2', t[1]);
+    root.style.setProperty('--accent', accent || t[2]);
+    root.style.setProperty('--accent2', t[3]);
+
+    // Content
+    $('#title').textContent = q;
+    $('#subtitle').textContent = sub;
+    $('#planText').textContent = plan;
+
+    // Buttons and pieces
+    const yesBtn = $('#yesBtn');
+    const noBtn  = $('#noBtn');
+    const wrap   = $('#btnWrap');
+    const result = $('#result');
+    const copyBtn= $('#copyBtn');
+    const hearts = $('#hearts');
+    const playBtn= $('#playBtn');
+    const shareBtn=$('#shareBtn');
+    const bgm    = $('#bgm');
+
+    // Music setup
+    if (music){
+      playBtn.style.display='inline-flex';
+      bgm.src = music;
+      playBtn.addEventListener('click', async ()=>{
+        try{
+          if(bgm.paused){ await bgm.play(); playBtn.textContent='⏸ Pause'; }
+          else { bgm.pause(); playBtn.textContent='▶️ Play'; }
+        }catch(e){ alert('Trình duyệt chặn tự động phát. Hãy thử lại sau khi tương tác.'); }
+      });
+    }
+
+    function rand(min, max){return Math.random()*(max-min)+min}
+
+    function moveNo(){
+      const wrapRect = wrap.getBoundingClientRect();
+      const btnRect = noBtn.getBoundingClientRect();
+      const pad = 6;
+      const maxLeft = wrapRect.width - btnRect.width - pad;
+      const maxTop  = wrapRect.height - btnRect.height - pad;
+      const left = rand(pad, Math.max(pad, maxLeft));
+      const top  = rand(pad, Math.max(pad, maxTop));
+      noBtn.style.left = left + 'px';
+      noBtn.style.top  = top + 'px';
+      // làm khó hơn một chút mỗi lần
+      yesBtn.style.transform = `scale(${1 + rand(0.02,0.08)})`;
+    }
+
+    function placeButtons(){
+      yesBtn.style.position='absolute';
+      yesBtn.style.left='10px';
+      yesBtn.style.bottom='10px';
+      moveNo();
+    }
+
+    placeButtons();
+    addEventListener('resize', placeButtons);
+
+    noBtn.addEventListener('mouseenter', moveNo);
+    noBtn.addEventListener('touchstart', (e)=>{e.preventDefault(); moveNo();}, {passive:false});
+    noBtn.addEventListener('click', (e)=>{e.preventDefault(); moveNo();});
+
+    yesBtn.addEventListener('click', async ()=>{
+      wrap.style.display='none';
+      $('.hint').style.display='none';
+      result.style.display='block';
+      burstHearts();
+      if (music){
+        try{ await bgm.play(); playBtn.textContent='⏸ Pause'; }catch(e){}
+      }
+    });
+
+    // Hearts rain
+    const emojis = ['💖','💘','💗','💞','💕','❤️','🩷'];
+    function spawnHeart(){
+      const span = document.createElement('span');
+      span.className = 'heart';
+      span.textContent = emojis[Math.floor(Math.random()*emojis.length)];
+      span.style.left = rand(0, 100) + 'vw';
+      span.style.fontSize = rand(14, 28) + 'px';
+      span.style.animationDuration = rand(1.8, 3.4) + 's';
+      hearts.appendChild(span);
+      setTimeout(()=> span.remove(), 3500);
+    }
+    function burstHearts(){
+      let i=0; const n=100; const iv = setInterval(()=>{
+        spawnHeart(); if(++i>=n) clearInterval(iv);
+      }, 22);
+    }
+
+    // Copy link
+    copyBtn.addEventListener('click', async ()=>{
+      try{
+        await navigator.clipboard.writeText(location.href);
+        copyBtn.textContent = 'Đã sao chép!';
+        setTimeout(()=>copyBtn.textContent='Sao chép link này', 1600);
+      }catch(err){
+        alert('Không sao chép được, bạn copy thủ công nhé!');
+      }
+    });
+
+    // Web Share
+    shareBtn.addEventListener('click', async ()=>{
+      const shareData = { title: document.title, text: 'Trả lời câu hỏi này cho anh nè 💘', url: location.href };
+      if(navigator.share){ try{ await navigator.share(shareData); } catch(e){} }
+      else{ await navigator.clipboard.writeText(location.href); shareBtn.textContent='Đã sao chép link'; setTimeout(()=>shareBtn.textContent='🔗 Chia sẻ', 1600); }
+    });
+  </script>
+</body>
+</html>
